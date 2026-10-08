@@ -1,153 +1,336 @@
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.util.List;
 
 public class Parser {
 
-    private static final int LETTER = 0;
-    private static final int DIGIT = 1;
-    private static final int UNKNOWN = 99;
-    private static final int EOF = -1;
-
-    private static final int INT_LIT = 10;
-    private static final int IDENT = 11;
-    private static final int ASSIGN_OP = 20;
-    private static final int ADD_OP = 21;
-    private static final int SUB_OP = 22;
-    private static final int MULT_OP = 23;
-    private static final int DIV_OP = 24;
-    private static final int LEFT_PAREN = 25;
-    private static final int RIGHT_PAREN = 26;
-
-    private int charClass;
-    private final StringBuilder lexeme = new StringBuilder();
-    private char nextChar;
-    private int nextToken;
-    private InputStream inputStream;
-
-    public static void main(String[] args) {
-        String inputExpression = "(sum + 47) / total";
-        System.out.println("Analiz Edilen İfade: " + inputExpression + "\n");
-
-        Parser parser = new Parser();
-        parser.startParsing(inputExpression);
+    public static class ParseException extends RuntimeException {
+        public ParseException(String message) {
+            super(message);
+        }
     }
 
-    public void startParsing(String input) {
-        inputStream = new ByteArrayInputStream(input.getBytes());
+    private final List<Token> tokens;
 
-        getChar();
-        do {
-            lex();
-        } while (nextToken != EOF);
+    private int current;
+
+    public Parser(List<Token> tokens) {
+        this.tokens  = tokens;
+        this.current = 0;
     }
 
-    private int lookup(char ch) {
-        switch (ch) {
-            case '(':
-                addChar();
-                nextToken = LEFT_PAREN;
+    private Token peek() {
+        return tokens.get(current);
+    }
+
+
+    private Token previous() {
+        return tokens.get(current - 1);
+    }
+
+    private Token advance() {
+        if (!isAtEnd()) current++;
+        return previous();
+    }
+
+    private boolean check(TokenType type) {
+        return peek().getType() == type;
+    }
+
+    private boolean match(TokenType... types) {
+        for (TokenType type : types) {
+            if (check(type)) {
+                advance();
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    private Token consume(TokenType type, String context) {
+        if (check(type)) {
+            return advance();
+        }
+        Token found = peek();
+        throw new ParseException(
+            String.format("[SÖZDIZIMI HATASI] Satir %d: %s beklendi, ancak '%s' (%s) bulundu.",
+                          found.getLine(), context, found.getValue(), found.getType())
+        );
+    }
+
+    private boolean isAtEnd() {
+        return peek().getType() == TokenType.EOF;
+    }
+
+    public void parse() {
+        System.out.println("║         SÖZDİZİMİ ANALİZİ BAŞLADI              ║");
+        program();
+        System.out.println("║  ✔ BAŞARILI: Program sözdizimi geçerlidir.      ║");
+    }
+
+    private void program() {
+        System.out.println("[program] Ayrıştırma başlıyor...");
+        while (!isAtEnd()) {
+            statement();
+        }
+        System.out.println("[program] Tüm deyimler başarıyla ayrıştırıldı.");
+    }
+
+
+    private void statement() {
+        TokenType type = peek().getType();
+
+        switch (type) {
+            case DEGISKEN:
+                declaration();
                 break;
-            case ')':
-                addChar();
-                nextToken = RIGHT_PAREN;
+            case EGER:
+                condition();
                 break;
-            case '+':
-                addChar();
-                nextToken = ADD_OP;
+            case DONGU:
+                loop();
                 break;
-            case '-':
-                addChar();
-                nextToken = SUB_OP;
+            case ICIN:
+                forLoop();
                 break;
-            case '*':
-                addChar();
-                nextToken = MULT_OP;
+            case YAZDIR:
+                print();
                 break;
-            case '/':
-                addChar();
-                nextToken = DIV_OP;
+            case IDENTIFIER:
+                assignment();
                 break;
             default:
-                addChar();
-                nextToken = EOF;
-                break;
-        }
-        return nextToken;
-    }
-
-    private void addChar() {
-        if (lexeme.length() <= 98) {
-            lexeme.append(nextChar);
-        } else {
-            System.out.println("Hata - lexeme çok uzun \n");
+                throw new ParseException(
+                    String.format("[SÖZDIZIMI HATASI] Satir %d: Beklenmedik token '%s' (%s). " +
+                                  "Deyim başlangıcı beklendi.",
+                                  peek().getLine(), peek().getValue(), peek().getType())
+                );
         }
     }
 
-    private void getChar() {
-        try {
-            int next = inputStream.read();
-            if (next != -1) {
-                nextChar = (char) next;
-                if (Character.isLetter(nextChar)) {
-                    charClass = LETTER;
-                } else if (Character.isDigit(nextChar)) {
-                    charClass = DIGIT;
-                } else {
-                    charClass = UNKNOWN;
-                }
-            } else {
-                charClass = EOF;
-                nextChar = ' ';
+
+    private void declaration() {
+        consume(TokenType.DEGISKEN, "'degisken' anahtar sozcugu");
+        Token idToken = consume(TokenType.IDENTIFIER, "degisken ismi (tanımlayıcı)");
+        System.out.println("  [bildirim] Değişken: " + idToken.getValue());
+
+        if (match(TokenType.ASSIGN)) {
+            System.out.println("  [bildirim] Başlangıç değeri atanıyor...");
+            expr();
+        }
+        consume(TokenType.SEMICOLON, "';' (noktalı virgül)");
+        System.out.println("  [bildirim] ✔ Tamamlandı: " + idToken.getValue());
+    }
+
+
+    private void assignment() {
+        Token idToken = consume(TokenType.IDENTIFIER, "tanımlayıcı (identifier)");
+
+        // Artırma/Azaltma: x++; veya x--;
+        if (match(TokenType.INCREMENT)) {
+            consume(TokenType.SEMICOLON, "';' (noktalı virgül)");
+            System.out.println("  [atama] ✔ Artırma: " + idToken.getValue() + "++");
+            return;
+        }
+        if (match(TokenType.DECREMENT)) {
+            consume(TokenType.SEMICOLON, "';' (noktalı virgül)");
+            System.out.println("  [atama] ✔ Azaltma: " + idToken.getValue() + "--");
+            return;
+        }
+
+        consume(TokenType.ASSIGN, "'=' (atama operatörü)");
+        System.out.println("  [atama] Sağ taraf hesaplanıyor: " + idToken.getValue() + " = ...");
+        expr();
+        consume(TokenType.SEMICOLON, "';' (noktalı virgül)");
+        System.out.println("  [atama] ✔ Tamamlandı: " + idToken.getValue());
+    }
+
+
+    private void assignmentNoSemi() {
+        Token idToken = consume(TokenType.IDENTIFIER, "tanımlayıcı (identifier)");
+        if (match(TokenType.INCREMENT)) {
+            System.out.println("  [for-atama] Artırma: " + idToken.getValue() + "++");
+            return;
+        }
+        if (match(TokenType.DECREMENT)) {
+            System.out.println("  [for-atama] Azaltma: " + idToken.getValue() + "--");
+            return;
+        }
+        consume(TokenType.ASSIGN, "'=' (atama operatörü)");
+        expr();
+        System.out.println("  [for-atama] Atama: " + idToken.getValue());
+    }
+
+
+    private void condition() {
+        consume(TokenType.EGER, "'eger' anahtar sozcugu");
+        System.out.println("  [koşul] 'eger' bloğu işleniyor...");
+
+        consume(TokenType.LPAREN, "'(' (sol parantez)");
+        boolExpr();
+        consume(TokenType.RPAREN, "')' (sağ parantez)");
+
+        consume(TokenType.LBRACE, "'{' (sol süslü parantez)");
+        System.out.println("  [koşul] 'eger' gövdesi ayrıştırılıyor...");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            statement();
+        }
+        consume(TokenType.RBRACE, "'}' (sağ süslü parantez)");
+        System.out.println("  [koşul] ✔ 'eger' gövdesi tamamlandı.");
+
+        // İsteğe bağlı 'yoksa' (else) bloğu
+        if (match(TokenType.YOKSA)) {
+            System.out.println("  [koşul] 'yoksa' bloğu işleniyor...");
+            consume(TokenType.LBRACE, "'{' (sol süslü parantez)");
+            while (!check(TokenType.RBRACE) && !isAtEnd()) {
+                statement();
             }
-        } catch (IOException e) {
-            System.out.println("Okuma Hatası: " + e.getMessage());
+            consume(TokenType.RBRACE, "'}' (sağ süslü parantez)");
+            System.out.println("  [koşul] ✔ 'yoksa' gövdesi tamamlandı.");
         }
     }
 
-    private void getNonBlank() {
-        while (Character.isWhitespace(nextChar) && charClass != EOF) {
-            getChar();
+
+    private void loop() {
+        consume(TokenType.DONGU, "'dongu' anahtar sozcugu");
+        System.out.println("  [döngü] 'dongu' (while) döngüsü işleniyor...");
+
+        consume(TokenType.LPAREN, "'(' (sol parantez)");
+        boolExpr();
+        consume(TokenType.RPAREN, "')' (sağ parantez)");
+
+        consume(TokenType.LBRACE, "'{' (sol süslü parantez)");
+        System.out.println("  [döngü] Döngü gövdesi ayrıştırılıyor...");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            statement();
+        }
+        consume(TokenType.RBRACE, "'}' (sağ süslü parantez)");
+        System.out.println("  [döngü] ✔ 'dongu' döngüsü tamamlandı.");
+    }
+
+
+    private void forLoop() {
+        consume(TokenType.ICIN, "'icin' anahtar sozcugu");
+        System.out.println("  [döngü] 'icin' (for) döngüsü işleniyor...");
+
+        consume(TokenType.LPAREN, "'(' (sol parantez)");
+
+        // Başlangıç deyimi (init)
+        System.out.println("  [icin] Başlangıç deyimi ayrıştırılıyor...");
+        assignmentNoSemi();
+        consume(TokenType.SEMICOLON, "';' (ilk noktalı virgül)");
+
+        // Koşul
+        System.out.println("  [icin] Koşul ayrıştırılıyor...");
+        boolExpr();
+        consume(TokenType.SEMICOLON, "';' (ikinci noktalı virgül)");
+
+        // Güncelleme deyimi (update)
+        System.out.println("  [icin] Güncelleme deyimi ayrıştırılıyor...");
+        assignmentNoSemi();
+
+        consume(TokenType.RPAREN, "')' (sağ parantez)");
+
+        consume(TokenType.LBRACE, "'{' (sol süslü parantez)");
+        System.out.println("  [icin] Döngü gövdesi ayrıştırılıyor...");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            statement();
+        }
+        consume(TokenType.RBRACE, "'}' (sağ süslü parantez)");
+        System.out.println("  [döngü] ✔ 'icin' döngüsü tamamlandı.");
+    }
+
+
+    private void print() {
+        consume(TokenType.YAZDIR, "'yazdir' anahtar sozcugu");
+        System.out.println("  [yazdir] Çıktı deyimi işleniyor...");
+        consume(TokenType.LPAREN, "'(' (sol parantez)");
+        expr();
+        consume(TokenType.RPAREN, "')' (sağ parantez)");
+        consume(TokenType.SEMICOLON, "';' (noktalı virgül)");
+        System.out.println("  [yazdir] ✔ Çıktı deyimi tamamlandı.");
+    }
+
+
+    private void boolExpr() {
+        if (match(TokenType.DOGRU)) {
+            System.out.println("  [bool] Sabit: dogru (true)");
+            return;
+        }
+        if (match(TokenType.YANLIS)) {
+            System.out.println("  [bool] Sabit: yanlis (false)");
+            return;
+        }
+
+        // <expr> <relOp> <expr>
+        expr();
+
+        // Karşılaştırma operatörü bekleniyor
+        if (!match(TokenType.EQ, TokenType.NEQ, TokenType.LT,
+                   TokenType.GT, TokenType.LTE, TokenType.GTE)) {
+            throw new ParseException(
+                String.format("[SÖZDIZIMI HATASI] Satir %d: " +
+                              "Karşılaştırma operatörü (<, >, <=, >=, ==, !=) beklendi, " +
+                              "ancak '%s' (%s) bulundu.",
+                              peek().getLine(), peek().getValue(), peek().getType())
+            );
+        }
+        System.out.println("  [bool] Karşılaştırma operatörü: " + previous().getValue());
+        expr();
+    }
+
+    private void expr() {
+        term(); // İlk terimi ayrıştır (Sebesta: call term())
+
+        // Sebesta: while (nextToken == PLUS_CODE || nextToken == MINUS_CODE)
+        while (match(TokenType.PLUS, TokenType.MINUS)) {
+            String op = previous().getValue();
+            System.out.println("    [expr] Operatör: " + op);
+            term(); // Sonraki terimi ayrıştır
         }
     }
 
-    public int lex() {
-        lexeme.setLength(0);
-        getNonBlank();
 
-        switch (charClass) {
-            case LETTER:
-                addChar();
-                getChar();
-                while (charClass == LETTER || charClass == DIGIT) {
-                    addChar();
-                    getChar();
-                }
-                nextToken = IDENT;
-                break;
+    private void term() {
+        factor(); // İlk faktörü ayrıştır (Sebesta: call factor())
 
-            case DIGIT:
-                addChar();
-                getChar();
-                while (charClass == DIGIT) {
-                    addChar();
-                    getChar();
-                }
-                nextToken = INT_LIT;
-                break;
-
-            case UNKNOWN:
-                lookup(nextChar);
-                getChar();
-                break;
-
-            case EOF:
-                nextToken = EOF;
-                lexeme.append("EOF");
-                break;
+        // Sebesta: while (nextToken == MULT_CODE || nextToken == DIV_CODE)
+        while (match(TokenType.MULT, TokenType.DIV)) {
+            String op = previous().getValue();
+            System.out.println("    [term] Operatör: " + op);
+            factor(); // Sonraki faktörü ayrıştır
         }
+    }
 
-        System.out.printf("Sıradaki Token: %d, Sıradaki Lexeme: %s%n", nextToken, lexeme.toString());
-        return nextToken;
+
+    private void factor() {
+        // Parantezli ifade: '(' expr ')'
+        if (match(TokenType.LPAREN)) {
+            System.out.println("    [factor] Parantezli ifade başlıyor...");
+            expr();
+            consume(TokenType.RPAREN, "')' (sağ parantez)");
+            System.out.println("    [factor] Parantezli ifade tamamlandı.");
+        }
+        // Tekli eksi: '-' factor
+        else if (match(TokenType.MINUS)) {
+            System.out.println("    [factor] Tekli eksi (unary minus)");
+            factor();
+        }
+        // Tam sayı sabiti
+        else if (match(TokenType.INT_LITERAL)) {
+            System.out.println("    [factor] Tam sayı sabiti: " + previous().getValue());
+        }
+        // Tanımlayıcı
+        else if (match(TokenType.IDENTIFIER)) {
+            System.out.println("    [factor] Tanımlayıcı: " + previous().getValue());
+        }
+        // Hiçbiri değilse → sözdizimi hatası
+        else {
+            throw new ParseException(
+                String.format("[SÖZDIZIMI HATASI] Satir %d: " +
+                              "İfade (sayı, tanımlayıcı veya '(') beklendi, " +
+                              "ancak '%s' (%s) bulundu.",
+                              peek().getLine(), peek().getValue(), peek().getType())
+            );
+        }
     }
 }

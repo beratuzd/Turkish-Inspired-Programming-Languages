@@ -1,0 +1,30 @@
+// TürkDil — Koşullu İfadeler Örneği (eger / yoksa)
+// Kaynak: tests/ConditionalExample.txt
+
+degisken x = 15;
+degisken sonuc = 0;
+
+// Basit eger bloğu
+eger (x > 10) {
+    sonuc = 1;
+    yazdir(sonuc);
+}
+
+// eger-yoksa bloğu
+eger (x == 15) {
+    sonuc = sonuc + 100;
+    yazdir(sonuc);
+} yoksa {
+    sonuc = 0;
+    yazdir(sonuc);
+}
+
+// İç içe koşul (nested condition)
+degisken y = 5;
+eger (y < 10) {
+    eger (y > 0) {
+        yazdir(y);
+    } yoksa {
+        yazdir(0);
+    }
+}

@@ -1,0 +1,5 @@
+ondlk pi = 3.14 :
+tam yaricap = 5 :
+
+tam alan = pi * yaricap ^ 2 :
+alan ?= 50 :

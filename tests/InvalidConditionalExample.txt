@@ -1,0 +1,7 @@
+tam puan = 85 :
+
+eger (puan == 100) {
+    yzdr "Harika" :
+} degilse {
+    yzdr "Daha cok calismalisin" :
+]]

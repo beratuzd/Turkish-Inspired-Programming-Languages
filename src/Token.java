@@ -1,23 +1,30 @@
-/**
- * Token.java
- * Bir tokeni temsil eden sınıf.
- * Her token: tip (TokenType) + lexeme (String) içerir.
- */
+
 public class Token {
 
     private final TokenType type;
-    private final String    lexeme;
 
-    public Token(TokenType type, String lexeme) {
-        this.type   = type;
-        this.lexeme = lexeme;
+    private final String value;
+
+    private final int line;
+
+    // ─── Yapılandırıcı / Constructor ──────────────────────────────────────────
+
+    public Token(TokenType type, String value, int line) {
+        this.type  = type;
+        this.value = value;
+        this.line  = line;
     }
 
-    public TokenType getType()   { return type;   }
-    public String    getLexeme() { return lexeme; }
+    // ─── Erişimciler / Getters ────────────────────────────────────────────────
+
+    public TokenType getType()  { return type;  }
+    public String    getValue() { return value; }
+    public int       getLine()  { return line;  }
+
+    // ─── String Gösterimi / String Representation ────────────────────────────
 
     @Override
     public String toString() {
-        return String.format("Token[%-14s | \"%s\"]", type, lexeme);
+        return String.format("[%-14s | %-12s | satir: %d]", type, "\"" + value + "\"", line);
     }
 }

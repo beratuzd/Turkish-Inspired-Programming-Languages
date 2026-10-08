@@ -1,0 +1,22 @@
+// TürkDil — Aritmetik İfadeler Örneği
+// Kaynak: tests/ArithmeticExample.txt
+
+degisken a = 10;
+degisken b = 3;
+degisken sonuc;
+
+// Toplama ve çıkarma
+sonuc = a + b;
+yazdir(sonuc);
+
+// Çarpma ve bölme
+sonuc = a * b;
+yazdir(sonuc);
+
+// Parantezli karmaşık ifade
+sonuc = (a + b) * (a - b);
+yazdir(sonuc);
+
+// Tekli eksi
+sonuc = -a + b;
+yazdir(sonuc);

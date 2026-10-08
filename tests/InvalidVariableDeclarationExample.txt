@@ -1,0 +1,4 @@
+tam yas = 20 :
+tam yas = 25 :
+isim = "Ahmet" :
+cml sehir = "Ankara" ;

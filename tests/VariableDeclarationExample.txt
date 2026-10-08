@@ -1,5 +1,11 @@
-Eger ) x = 0 : x<10 : x++  ( [[
+// TürkDil — Değişken Bildirimi ve Aritmetik Örneği
+// Kaynak: tests/VariableDeclarationExample.txt
 
-Wjoegnlsjgn
+degisken sayi = 42;
+degisken toplam = 0;
+degisken ad;
 
-]]
+sayi = sayi + 10;
+toplam = sayi * 2;
+
+yazdir(toplam);

@@ -1,0 +1,28 @@
+// TürkDil — Döngüler Örneği (dongu / icin)
+// Kaynak: tests/LoopExample.txt
+
+degisken sayac = 0;
+degisken toplam = 0;
+
+// dongu (while döngüsü): 1'den 5'e kadar topla
+sayac = 1;
+dongu (sayac <= 5) {
+    toplam = toplam + sayac;
+    sayac++;
+}
+yazdir(toplam);
+
+// icin (for döngüsü): 0'dan 4'e kadar yazdır
+degisken i = 0;
+icin (i = 0; i < 5; i++) {
+    yazdir(i);
+}
+
+// İç içe döngü (nested loops)
+degisken dis = 0;
+degisken ic = 0;
+icin (dis = 0; dis < 3; dis++) {
+    icin (ic = 0; ic < 3; ic++) {
+        yazdir(ic);
+    }
+}

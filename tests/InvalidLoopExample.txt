@@ -1,0 +1,6 @@
+tam sayac = 10 :
+
+dongu ) sayac > 0 ( [[
+    yzdr "Sayacin guncel degeri:
+    sayac = sayac - 1
+]]
